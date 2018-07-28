@@ -1,12 +1,5 @@
-#![feature(test)]
-extern crate test;
-extern crate dtoa;
-
 use std::io::{Write,Result};
 //use std::fmt::{LowerExp, UpperExp, Display, Debug};
-
-// Ref: http://delivery.acm.org/10.1145/3200000/3192369/pldi18main-p10-p.pdf?ip=203.220.129.155&id=3192369&acc=OA&key=4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E66AE2C137E5E05CA&__acm__=1532737655_ac5e7ac0d74d1a28eaf5dd975900f935
-// Ref: https://github.com/ulfjack/ryu/blob/master/ryu/f2s.c
 
 /// Returns e == 0 ? 1 : ceil(log_2(5^e)).
 #[inline]
@@ -134,7 +127,7 @@ const F32_MANTISSA_BITS: u32 = 23;
 const F32_EXP_BITS: u32 = 8;
 const F32_OFFSET: u32 = (1u32 << (F32_EXP_BITS - 1)) - 1;
 
-pub fn float_to_decimal_common_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
+pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
 
     // TODO: may want to extract the bulk of this code to prevent large amounts of code being generated if using multiple Write implementations...
 
@@ -354,74 +347,20 @@ pub fn float_to_decimal_common_shortest<W: Write>(mut writer: W, num: f32 ) -> R
 mod tests {
     use super::*;
 
-    use test::Bencher;
-    use dtoa::*;
-
-    #[bench]
-    fn bench_f32_debug(b: &mut Bencher) {
+    fn f32_test_num( number: f32, text: &str ) {
         let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
-        let x: f32 = 215.1291248e-43;
+        write_f32_shortest( &mut buffer, number ).unwrap();
 
-        b.iter(|| {
-            buffer.clear();
-            write!(&mut buffer, "{:?}", x);
-        });
+        assert_eq!(std::str::from_utf8(&buffer).unwrap(),text);
     }
 
-    #[bench]
-    fn bench_f32_format(b: &mut Bencher) {
-        let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
-        let x: f32 = 215.1291248e-43;
-
-        b.iter(|| {
-            buffer.clear();
-            write!(&mut buffer, "{}", x);
-        });
-    }
-
-
-    #[bench]
-    fn bench_float_to_decimal_common_shortest(b: &mut Bencher) {
-        let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
-        let x: f32 = 215.1291248e-43;
-
-        b.iter(|| {
-            buffer.clear();
-
-            let _ = float_to_decimal_common_shortest( &mut buffer, x).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_dtoa(b: &mut Bencher) {
-        let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
-        let x: f32 = 215.1291248e-43;
-
-        b.iter(|| {
-            buffer.clear();
-            let _ = write( &mut buffer, x).unwrap();
-        });
-    }
-}
-
-fn main() {
-
-    let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
-
-    for bits in 0u32..=std::u32::MAX {
-        let float = f32::from_bits( bits );
-        buffer.clear();
-        let _ = float_to_decimal_common_shortest( &mut buffer, float ).unwrap();
-
-        let float_str = std::str::from_utf8( &buffer ).unwrap();
-        let parsed = float_str.parse::<f32>().unwrap();
-
-        if 0 == ( bits % 100000 ) {
-            println!("{}% complete", bits as f64 * 100.0 / (std::u32::MAX as f64 ));
-        }
-
-        if parsed != float {
-            println!("for bits: {} float {} => \"{}\" != {} (parsed)", bits, float, float_str, parsed );
-        }
+    #[test]
+    fn f32_samples() {
+        f32_test_num(-215.1291248e-43,"-2.1513e-41");
+        f32_test_num(0.0,"0");
+        f32_test_num(std::f32::INFINITY,"inf");
+        f32_test_num(-std::f32::INFINITY,"-inf");
+        f32_test_num(std::f32::MAX,"3.4028235e38");
+        f32_test_num(std::f32::MIN,"-3.4028235e38");
     }
 }
