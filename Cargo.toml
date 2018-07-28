@@ -1,0 +1,10 @@
+[package]
+name = "ryu-rs"
+version = "0.1.0"
+authors = ["Peter Bertok <peter@bertok.com>"]
+description ="Fast float-to-string conversion based on the Ryū algorithm by Ulf Adams."
+repository="https://www.github.com/peter-bertok/ryu-rs"
+categories=["Encoding","Parsing"]
+
+[dependencies]
+dtoa = "0.4.3"
