@@ -8,7 +8,7 @@ scientific data formats where all numbers are internally treated as floating poi
 can be the bottleneck to serialisation.
 
 During development of this code it was noted that the [serde_json](https://github.com/serde-rs/json/) crate
-references the [dtoa](https://github.com/dtoa-rs/) crate, which is both slower and contains unsafe
+references the [dtoa](https://github.com/dtolnay/dtoa) crate, which is both slower and contains unsafe
 code. This crate uses no unsafe code, and could potentially use `#![no_std]` as well.
 
 ## Status
