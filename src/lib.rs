@@ -12,7 +12,6 @@ const F64_OFFSET: i32 = (1 << (F64_EXP_BITS - 1)) - 1;
 const F64_POW5_BIT_COUNT: i32 = 121;
 const F64_POW5_INV_BIT_COUNT: u32 = 122;
 
-
 /// Returns e == 0 ? 1 : ceil(log_2(5^e)).
 #[inline]
 fn pow5_bits(e: u32 ) -> u32 {
@@ -41,7 +40,6 @@ fn log10_pow5(e: u32 ) -> u32
 
     (e * 732923) >> 20
 }
-
 
 
 #[inline]
@@ -108,12 +106,14 @@ fn mul_shift_32(m: u32, factor: u64, shift: u32 ) -> u32 {
 }
 
 /// We need a 64x128-bit multiplication and a subsequent 128-bit shift.
+///
 /// Multiplication:
 ///   The 64-bit factor is variable and passed in, the 128-bit factor comes
 ///   from a lookup table. We know that the 64-bit factor only has 55
 ///   significant bits (i.e., the 9 topmost bits are zeros). The 128-bit
 ///   factor only has 124 significant bits (i.e., the 4 topmost bits are
 ///   zeros).
+///
 /// Shift:
 ///   In principle, the multiplication result requires 55+124=179 bits to
 ///   represent. However, we then shift this value to the right by j, which is
@@ -182,6 +182,29 @@ fn decimal_length_64(v: u64) -> u32 {
     return 1;
 }
 
+/// Converts the given `f32` number to a short round-trip base-10 representation
+/// using the efficient Ryū algorithm by Ulf Adams.
+///
+/// This function is ideal for exporting bulk floating-point data to text formats,
+/// such as CSV, JSON, or XLSX (Excel 2007 and later).
+///
+/// # Examples
+///
+/// ```
+/// use float_fast_print::write_f32_shortest;
+///
+/// let mut buffer: Vec<u8> = Vec::with_capacity(32);
+/// write_f32_shortest(&mut buffer, 502.1239e29).unwrap();
+/// assert_eq!(&buffer, b"5.021239e31");
+/// ```
+/// # Safety
+/// Unlike some other similar code such as the `dtoa` crate, this function uses
+/// 100% safe Rust code, does not have any external dependencies, does not include
+/// C code, and does not require a heap.
+///
+/// The `float_fast_print::exhaustive` test can be used to totally validate the
+/// round-trip behaviour and stability (no panics wih all 2^32 distinct `f32` inputs),
+/// guaranteeing safety. Note that this takes some days to complete...
 pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
 
     // TODO: may want to extract the bulk of this code to prevent large amounts of code being generated if using multiple Write implementations...
@@ -398,6 +421,29 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
     writer.write(&result[0..index] )
 }
 
+/// Converts the given `f32` number to a short round-trip base-10 representation
+/// using the efficient Ryū algorithm by Ulf Adams.
+///
+/// This function is ideal for exporting bulk floating-point data to text formats,
+/// such as CSV, JSON, or XLSX (Excel 2007 and later).
+///
+/// # Examples
+///
+/// ```
+/// use float_fast_print::write_f64_shortest;
+///
+/// let mut buffer: Vec<u8> = Vec::with_capacity(32);
+/// write_f64_shortest(&mut buffer, 502.1239e29).unwrap();
+/// assert_eq!(&buffer, b"5.021239e31");
+/// ```
+///
+/// # Safety
+/// Unlike some other similar code such as the `dtoa` crate, this function uses
+/// 100% safe Rust code, does not have any external dependencies, does not include
+/// C code, and does not require a heap.
+///
+/// Unlike `write_f32_shortest`, it is infeasible to test all 2^64 possible input
+/// numbers.
 pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
     // Step 1: Decode the floating-point number, and unify normalized and subnormal cases.
      let bits: u64 = num.to_bits();
@@ -1047,5 +1093,4 @@ mod tests {
         f64_test_roundtrip(std::f64::EPSILON);
         f64_test_roundtrip(std::f64::MIN_POSITIVE);
     }
-
 }

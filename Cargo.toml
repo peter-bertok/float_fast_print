@@ -1,6 +1,6 @@
 [package]
 name = "float_fast_print"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Peter Bertok <peter@bertok.com>"]
 description ="Fast float-to-string conversion based on the Ryū algorithm by Ulf Adams."
 repository="https://www.github.com/peter-bertok/float_fast_print"
