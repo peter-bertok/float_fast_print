@@ -1,8 +1,9 @@
 #![feature(test)]
 
-extern crate ryu;
+extern crate float_fast_print;
 
-use ryu::*;
+use float_fast_print::write_f32_shortest;
+use float_fast_print::write_f64_shortest;
 
 #[test]
 fn test_exhaustive_roundtrip() {

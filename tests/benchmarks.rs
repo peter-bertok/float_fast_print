@@ -1,10 +1,9 @@
 #![feature(test)]
 
-extern crate ryu;
+extern crate float_fast_print;
 extern crate test;
-extern crate dtoa;
 
-use ryu::*;
+use float_fast_print::*;
 use test::Bencher;
 use std::io::Write;
 
@@ -73,28 +72,6 @@ fn bench_write_f64_shortest(b: &mut Bencher) {
         buffer.clear();
 
         let _ = write_f64_shortest(&mut buffer, x).unwrap();
-    });
-}
-
-#[bench]
-fn bench_dtoa_f64(b: &mut Bencher) {
-    let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
-    let x: f64 = -28215.12291248e-43;
-
-    b.iter(|| {
-        buffer.clear();
-        let _ = dtoa::write( &mut buffer, x).unwrap();
-    });
-}
-
-#[bench]
-fn bench_dtoa_f32(b: &mut Bencher) {
-    let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
-    let x: f32 = -28215.12291248e-43;
-
-    b.iter(|| {
-        buffer.clear();
-        let _ = dtoa::write( &mut buffer, x).unwrap();
     });
 }
 

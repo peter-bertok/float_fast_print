@@ -6,11 +6,12 @@ const F32_EXP_BITS: u32 = 8;
 const F32_OFFSET: u32 = (1u32 << (F32_EXP_BITS - 1)) - 1;
 const F32_POW5_BIT_COUNT: u32 = 61;
 const F32_POW5_INV_BIT_COUNT: u32 = 59;
-const F64_MANTISSA_BITS: u32 = 52;
-const F64_EXP_BITS: u32 = 11;
-const F64_OFFSET: u32 = (1u32 << (F32_EXP_BITS - 1)) - 1;
-const F64_POW5_BIT_COUNT: u32 = 121;
+const F64_MANTISSA_BITS: i32 = 52;
+const F64_EXP_BITS: i32 = 11;
+const F64_OFFSET: i32 = (1 << (F64_EXP_BITS - 1)) - 1;
+const F64_POW5_BIT_COUNT: i32 = 121;
 const F64_POW5_INV_BIT_COUNT: u32 = 122;
+
 
 /// Returns e == 0 ? 1 : ceil(log_2(5^e)).
 #[inline]
@@ -21,9 +22,9 @@ fn pow5_bits(e: u32 ) -> u32 {
     ((e * 1217359) >> 19) + 1
 }
 
-/// Returns floor(log_10(2^e)).
+/// Returns floor(log10(2^e)).
 #[inline]
-fn log_10_pow2(e: u32 ) -> u32
+fn log10_pow2(e: u32 ) -> u32
 {
     // This function has only been tested for 0 <= e <= 1500.
     debug_assert!(e <= 1500);
@@ -31,9 +32,9 @@ fn log_10_pow2(e: u32 ) -> u32
     (e * 78913) >> 18
 }
 
-/// Returns floor(log_10(5^e)).
+/// Returns floor(log10(5^e)).
 #[inline]
-fn log_10_pow5(e: u32 ) -> u32
+fn log10_pow5(e: u32 ) -> u32
 {
     // This function has only been tested for 0 <= e <= 1500.
     debug_assert!(e <= 1500);
@@ -155,6 +156,7 @@ fn decimal_length_32(v: u32 ) -> u32 {
 }
 
 fn decimal_length_64(v: u64) -> u32 {
+
     // This is slightly faster than a loop.
     // The average output length is 16.38 digits, so we check high-to-low.
     // Function precondition: v is not an 18, 19, or 20-digit number.
@@ -194,7 +196,6 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
     let m2: u32;
 
     if ieee_exponent == ( 1 << F32_EXP_BITS ) - 1 {
-        // @@@
         if ieee_mantissa != 0 {
             return writer.write( b"NaN" );
         }
@@ -210,15 +211,16 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
     else if ieee_exponent == 0 {
         if ieee_mantissa == 0 {
             if sign {
-                return writer.write( b"-0" );
+                return writer.write( b"-0e0" );
             }
             else {
-                return writer.write( b"0" );
+                return writer.write( b"0e0" );
             }
         }
-            // We subtract 2 so that the bounds computation has 2 additional bits.
-            e2 = 1i32 - ( F32_OFFSET as i32 ) - ( F32_MANTISSA_BITS as i32 ) - 2;
-            m2 = ieee_mantissa;
+
+        // We subtract 2 so that the bounds computation has 2 additional bits.
+        e2 = 1i32 - ( F32_OFFSET as i32 ) - ( F32_MANTISSA_BITS as i32 ) - 2;
+        m2 = ieee_mantissa;
     }
     else
     {
@@ -244,7 +246,7 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
     let mut last_removed_digit: u8 = 0;
 
     if e2 >= 0 {
-        let q = log_10_pow2(e2 as u32 );
+        let q = log10_pow2(e2 as u32 );
         e10 = q as i32;
         let k = ( F32_POW5_INV_BIT_COUNT as u32 ) + pow5_bits(q ) - 1;
         let i = -e2 + q as i32 + ( k as i32 );
@@ -272,7 +274,7 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
             }
         }
     } else {
-        let q = log_10_pow5((-e2) as u32 ) as i32;
+        let q = log10_pow5((-e2) as u32 ) as i32;
         e10 = ( q as i32 ) + e2;
         let i = ( -e2 - ( q as i32 )) as u32;
         let k: i32 = pow5_bits(i) as i32 - F32_POW5_BIT_COUNT as i32;
@@ -294,7 +296,7 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
             else {
                 vp -= 1;
             }
-        } else if q < 31 { // TODO: @ulfjack: Use a tighter bound here.
+        } else if q < 31 { // TODO: @u32fjack: Use a tighter bound here.
             vr_is_trailing_zeros = (mv & ((1u32 << (q - 1)) - 1)) == 0;
         }
     }
@@ -397,21 +399,228 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
 }
 
 pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
-    Ok(0)
-}
+    // Step 1: Decode the floating-point number, and unify normalized and subnormal cases.
+     let bits: u64 = num.to_bits();
 
-const DIGIT_TABLE: [u8;200] = [
-    b'0',b'0',b'0',b'1',b'0',b'2',b'0',b'3',b'0',b'4',b'0',b'5',b'0',b'6',b'0',b'7',b'0',b'8',b'0',b'9',
-    b'1',b'0',b'1',b'1',b'1',b'2',b'1',b'3',b'1',b'4',b'1',b'5',b'1',b'6',b'1',b'7',b'1',b'8',b'1',b'9',
-    b'2',b'0',b'2',b'1',b'2',b'2',b'2',b'3',b'2',b'4',b'2',b'5',b'2',b'6',b'2',b'7',b'2',b'8',b'2',b'9',
-    b'3',b'0',b'3',b'1',b'3',b'2',b'3',b'3',b'3',b'4',b'3',b'5',b'3',b'6',b'3',b'7',b'3',b'8',b'3',b'9',
-    b'4',b'0',b'4',b'1',b'4',b'2',b'4',b'3',b'4',b'4',b'4',b'5',b'4',b'6',b'4',b'7',b'4',b'8',b'4',b'9',
-    b'5',b'0',b'5',b'1',b'5',b'2',b'5',b'3',b'5',b'4',b'5',b'5',b'5',b'6',b'5',b'7',b'5',b'8',b'5',b'9',
-    b'6',b'0',b'6',b'1',b'6',b'2',b'6',b'3',b'6',b'4',b'6',b'5',b'6',b'6',b'6',b'7',b'6',b'8',b'6',b'9',
-    b'7',b'0',b'7',b'1',b'7',b'2',b'7',b'3',b'7',b'4',b'7',b'5',b'7',b'6',b'7',b'7',b'7',b'8',b'7',b'9',
-    b'8',b'0',b'8',b'1',b'8',b'2',b'8',b'3',b'8',b'4',b'8',b'5',b'8',b'6',b'8',b'7',b'8',b'8',b'8',b'9',
-    b'9',b'0',b'9',b'1',b'9',b'2',b'9',b'3',b'9',b'4',b'9',b'5',b'9',b'6',b'9',b'7',b'9',b'8',b'9',b'9'
-];
+    // Decode bits into sign, mantissa, and exponent.
+    let sign: bool =  ((bits >> (F64_MANTISSA_BITS + F64_EXP_BITS)) & 1) != 0;
+    let ieee_mantissa: u64 = bits & ((1u64 << F64_MANTISSA_BITS) - 1);
+    let ieee_exponent: u32 = ((bits >> F64_MANTISSA_BITS) & ((1u64 << F64_EXP_BITS) - 1)) as u32;
+
+    let e2: i32;
+    let m2: u64;
+    // Case distinction; exit early for the easy cases.
+    if ieee_exponent == ((1u32 << F64_EXP_BITS) - 1u32) || (ieee_exponent == 0 && ieee_mantissa == 0) {
+        if ieee_mantissa != 0 {
+            return writer.write( b"NaN" );
+        }
+        if ieee_exponent != 0 {
+            if sign {
+                return writer.write( b"-inf" );
+            }  else {
+                return writer.write( b"inf" );
+            }
+        }
+        if sign {
+            return writer.write( b"-0e0" );
+        } else {
+            return writer.write( b"0e0" );
+        }
+    } else if ieee_exponent == 0 {
+        // We subtract 2 so that the bounds computation has 2 additional bits.
+        e2 = 1 - F64_OFFSET - F64_MANTISSA_BITS - 2;
+        m2 = ieee_mantissa;
+    } else {
+        e2 = ieee_exponent as i32 - F64_OFFSET - F64_MANTISSA_BITS - 2;
+        m2 = (1u64 << F64_MANTISSA_BITS) | ieee_mantissa;
+    }
+    let even: bool =  (m2 & 1) == 0;
+    let accept_bounds: bool =  even;
+
+    // Step 2: Determine the interval of legal decimal representations.
+    let mv: u64 =  4 * m2;
+    // Implicit bool -> int conversion. True is 1, false is 0.
+    let mm_shift: u64 = if (m2 != (1u64 << F64_MANTISSA_BITS)) || (ieee_exponent <= 1) { 1 } else { 0 };
+    // We would compute mp and mm like this:
+    //  u64 mp = 4 * m2 + 2;
+    //  u64 mm = mv - 1 - mm_shift;
+
+    // Step 3: Convert to a decimal power base using 128-bit arithmetic.
+    let mut vr: u64;
+    let mut vp: u64;
+    let mut vm: u64;
+    let e10: i32;
+    let mut vm_is_trailing_zeros = false;
+    let mut vr_is_trailing_zeros = false;
+    if e2 >= 0 {
+        // I tried special-casing q == 0, but there was no effect on performance.
+        // This expression is slightly faster than max(0, log10Pow2(e2) - 1).
+        let q: i32 = log10_pow2(e2 as u32) as i32 - if e2 > 3 { 1 } else { 0 };
+        e10 = q;
+        let k: i32 = ( F64_POW5_INV_BIT_COUNT + pow5_bits(q as u32 )) as i32 - 1;
+        let i: i32 = -e2 + q + k;
+
+        let mul0: u64 = DOUBLE_POW5_INV_SPLIT[q as usize][0];
+        let mul1: u64 = DOUBLE_POW5_INV_SPLIT[q as usize][1];
+        vr = mul_shift_64(4 * m2,                mul0, mul1, i as u32);
+        vp = mul_shift_64(4 * m2 + 2,            mul0, mul1, i as u32);
+        vm = mul_shift_64(4 * m2 - 1 - mm_shift, mul0, mul1, i as u32);
+
+        if q <= 21 {
+            // Only one of mp, mv, and mm can be a multiple of 5, if any.
+            if mv % 5 == 0 {
+                vr_is_trailing_zeros = multiple_of_pow5_64(mv, q);
+            }
+                else {
+                    if accept_bounds {
+                        // Same as min(e2 + (~mm & 1), pow5Factor(mm)) >= q
+                        // <=> e2 + (~mm & 1) >= q && pow5Factor(mm) >= q
+                        // <=> true && pow5Factor(mm) >= q, since e2 >= q.
+                        vm_is_trailing_zeros = multiple_of_pow5_64(mv - 1 - mm_shift, q);
+                    }
+                        else {
+                            // Same as min(e2 + 1, pow5Factor(mp)) >= q.
+                            vp -= if multiple_of_pow5_64(mv + 2, q) { 1 } else { 1 };
+                        }
+                }
+        }
+    } else {
+        // This expression is slightly faster than max(0, log10_pow5_64(-e2) - 1).
+        let q: i32 = log10_pow5(( -e2 ) as u32) as i32 - ( if -e2 > 1 { 1 } else { 0 });
+        e10 = q + e2;
+        let i: i32 = -e2 - q;
+        let k: i32 = pow5_bits(i as u32 ) as i32 - F64_POW5_BIT_COUNT;
+        let j: i32 = q - k;
+
+        let mul0: u64 = DOUBLE_POW5_SPLIT[i as usize][0];
+        let mul1: u64 = DOUBLE_POW5_SPLIT[i as usize][1];
+        vr = mul_shift_64(4 * m2,                       mul0, mul1, j as u32);
+        vp = mul_shift_64(4 * m2 + 2,                   mul0, mul1, j as u32);
+        vm = mul_shift_64(4 * m2 - 1 - mm_shift as u64, mul0, mul1, j as u32);
+
+
+        if q <= 1 {
+            vr_is_trailing_zeros = (!(mv as u32) & 1) >= q as u32;
+            if accept_bounds {
+                vm_is_trailing_zeros = (!((mv - 1 - mm_shift as u64) as u32) & 1) >= q as u32;
+            } else {
+                vp -= 1;
+            }
+        }  else if q < 63 { // TODO(u32fjack): Use a tighter bound here.
+            // We need to compute min(ntz(mv), pow5Factor(mv) - e2) >= q-1
+            // <=> ntz(mv) >= q-1  &&  pow5Factor(mv) - e2 >= q-1
+            // <=> ntz(mv) >= q-1
+            // <=> (mv & ((1 << (q-1)) - 1)) == 0
+            // We also need to make sure that the left shift does not overflow.
+            vr_is_trailing_zeros = (mv & ((1u64 << (q - 1)) - 1)) == 0;
+        }
+    }
+
+    // Step 4: Find the shortest decimal representation in the interval of legal representations.
+    let mut removed: usize = 0;
+    let mut last_removed_digit: u8 = 0;
+    let mut output: u64;
+    // On average, we remove ~2 digits.
+    if vm_is_trailing_zeros || vr_is_trailing_zeros {
+        // General case, which happens rarely (<1%).
+        while vp / 10 > vm / 10 {
+            // https://bugs.llvm.org/show_bug.cgi?id=23106
+            // The compiler does not realize that vm % 10 can be computed from vm / 10
+            // as vm - (vm / 10) * 10.
+            vm_is_trailing_zeros &= vm - (vm / 10) * 10 == 0;
+            // vm_is_trailing_zeros &= vm % 10 == 0;
+            vr_is_trailing_zeros &= last_removed_digit == 0;
+            last_removed_digit = (vr % 10) as u8;
+            vr /= 10;
+            vp /= 10;
+            vm /= 10;
+            removed += 1;
+        }
+
+        if vm_is_trailing_zeros {
+            while vm % 10 == 0 {
+                vr_is_trailing_zeros &= last_removed_digit == 0;
+                last_removed_digit = (vr % 10) as u8;
+                vr /= 10;
+                vp /= 10;
+                vm /= 10;
+                removed += 1;
+            }
+        }
+
+        if vr_is_trailing_zeros && (last_removed_digit == 5) && (vr % 2 == 0) {
+            // Round down not up if the number ends in X50000.
+            last_removed_digit = 4;
+        }
+
+        // We need to take vr+1 if vr is outside bounds or we need to round up.
+        output = vr + if (vr == vm && (!accept_bounds || !vm_is_trailing_zeros)) || (last_removed_digit >= 5) { 1 } else { 0 };
+    } else {
+        // Specialized for the common case (>99%).
+        while vp / 10 > vm / 10 {
+            last_removed_digit = (vr % 10) as u8;
+            vr /= 10;
+            vp /= 10;
+            vm /= 10;
+            removed += 1;
+        }
+
+        // We need to take vr+1 if vr is outside bounds or we need to round up.
+        output = vr + ( if (vr == vm) || (last_removed_digit >= 5) { 1 } else { 0 } );
+    }
+    // The average output length is 16.38 digits.
+    let o_length: usize =  decimal_length_64(output) as usize;
+    let vp_length: usize =  o_length + removed;
+    let mut exp: i32 = e10 + vp_length as i32 - 1;
+
+    // Step 5: Print the decimal representation.
+    let mut result: [u8;24] = [0; 24]; // the longest required is apparently: -2.2250738585072020E−308
+    let mut index: usize = 0;
+    if sign {
+        result[index] = b'-';
+        index+=1;
+    }
+
+        // Print decimal digits after the decimal point.
+    for i in 0 .. o_length - 1 {
+        let c = output % 10;
+        output /= 10;
+        result[index + o_length - i] = b'0' + c as u8;
+    }
+    // Print the leading decimal digit.
+    result[index] = b'0' + ( output % 10 ) as u8;
+
+    // Print decimal point if needed.
+    if o_length > 1 {
+        result[index + 1] = b'.';
+        index += o_length + 1;
+    } else {
+        index+=1;
+    }
+
+    // Print the exponent.
+    result[index] = b'e';
+    index += 1;
+    if exp < 0 {
+        result[index] = b'-';
+        index += 1;
+        exp = -exp;
+    }
+
+    if exp >= 100 {
+        result[index] = b'0' + ( exp / 100 ) as u8;
+        index += 1;
+    }
+    if exp >= 10 {
+        result[index] = b'0' + ((exp / 10) % 10) as u8;
+        index += 1;
+    }
+    result[index] = b'0' + ( exp % 10 ) as u8;
+    index += 1;
+
+
+    writer.write(&result[0..index] )
+}
 
 const F32_POW5_INV_SPLIT: [u64;31] = [
     576460752303423489u64, 461168601842738791u64, 368934881474191033u64, 295147905179352826u64,
@@ -758,22 +967,85 @@ const DOUBLE_POW5_SPLIT: [[u64;2];326] = [
 mod tests {
     use super::*;
 
-    fn f32_test_num( number: f32, text: &str ) {
-        let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
-        write_f32_shortest( &mut buffer, number ).unwrap();
+    fn f32_test_text(number: f32, text: &str) {
+        let mut buffer: Vec<u8> = Vec::with_capacity(32);
+        write_f32_shortest(&mut buffer, number).unwrap();
 
-        assert_eq!(std::str::from_utf8(&buffer).unwrap(),text);
+        assert_eq!(std::str::from_utf8(&buffer).unwrap(), text);
+    }
+
+    fn f64_test_text(number: f64, text: &str) {
+        let mut buffer: Vec<u8> = Vec::with_capacity(32);
+        write_f64_shortest(&mut buffer, number).unwrap();
+
+        assert_eq!(std::str::from_utf8(&buffer).unwrap(), text);
+    }
+
+    fn f32_test_roundtrip(number: f32) {
+        let mut buffer: Vec<u8> = Vec::with_capacity(32);
+        write_f32_shortest(&mut buffer, number).unwrap();
+        let text = std::str::from_utf8(&buffer).unwrap();
+        let parsed = text.parse::<f32>().unwrap();
+
+        assert_eq!(number, parsed);
+    }
+
+    fn f64_test_roundtrip(number: f64) {
+        let mut buffer: Vec<u8> = Vec::with_capacity(32);
+        write_f64_shortest(&mut buffer, number).unwrap();
+        let text = std::str::from_utf8(&buffer).unwrap();
+        let parsed = text.parse::<f64>().unwrap();
+
+        assert_eq!(number, parsed);
+    }
+
+
+    #[test]
+    fn f32_special_cases() {
+        f32_test_text(1.0, "1e0");
+        f32_test_text(-1.0, "-1e0");
+        f32_test_text(0.0, "0e0");
+        f32_test_text(std::f32::INFINITY, "inf");
+        f32_test_text(std::f32::NEG_INFINITY, "-inf");
     }
 
     #[test]
-    fn f32_samples() {
-        f32_test_num(-215.1291248e-43,"-2.1513e-41");
-        f32_test_num(1.0,"1e0");
-        f32_test_num(-1.0,"-1e0");
-        f32_test_num(0.0,"0");
-        f32_test_num(std::f32::INFINITY,"inf");
-        f32_test_num(-std::f32::INFINITY,"-inf");
-        f32_test_num(std::f32::MAX,"3.4028235e38");
-        f32_test_num(std::f32::MIN,"-3.4028235e38");
+    fn f64_special_cases() {
+        f64_test_text(1.0, "1e0");
+        f64_test_text(-1.0, "-1e0");
+        f64_test_text(0.0, "0e0");
+        f64_test_text(std::f64::INFINITY, "inf");
+        f64_test_text(std::f64::NEG_INFINITY, "-inf");
     }
+
+    #[test]
+    fn f32_special_cases_roundtrip() {
+        f32_test_roundtrip(0.0);
+        f32_test_roundtrip(1.0);
+        f32_test_roundtrip(-1.0);
+        f32_test_roundtrip(0.1);
+        f32_test_roundtrip(-0.1);
+        f32_test_roundtrip(std::f32::INFINITY);
+        f32_test_roundtrip(std::f32::NEG_INFINITY);
+        f32_test_roundtrip(std::f32::MAX);
+        f32_test_roundtrip(std::f32::MIN);
+        f32_test_roundtrip(std::f32::EPSILON);
+        f32_test_roundtrip(std::f32::MIN_POSITIVE);
+    }
+
+    #[test]
+    fn f64_special_cases_roundtrip() {
+        f64_test_roundtrip(0.0);
+        f64_test_roundtrip(1.0);
+        f64_test_roundtrip(-1.0);
+        f64_test_roundtrip(0.1);
+        f64_test_roundtrip(-0.1);
+        f64_test_roundtrip(std::f64::INFINITY);
+        f64_test_roundtrip(std::f64::NEG_INFINITY);
+        f64_test_roundtrip(std::f64::MAX);
+        f64_test_roundtrip(std::f64::MIN);
+        f64_test_roundtrip(std::f64::EPSILON);
+        f64_test_roundtrip(std::f64::MIN_POSITIVE);
+    }
+
 }
