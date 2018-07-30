@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Peter Bertok <peter@bertok.com>"]
 description ="Fast float-to-string conversion based on the Ryū algorithm by Ulf Adams."
 repository="https://www.github.com/peter-bertok/float_fast_print"
+readme="README.md"
 license = "Apache-2.0 OR MIT"
 keywords=["float","f32","f64","serialization","formatting"]
 categories=["encoding","value-formatting"]
