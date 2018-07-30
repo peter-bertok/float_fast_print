@@ -37,6 +37,5 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 A test harness for the `f64` version will be written soon, but the testing can't be exhaustive, as it would take years to run...
 
 ## References
-* [Ryū: Fast Float-to-String Conversion (acm.org)](http://delivery.acm.org/10.1145/3200000/3192369/pldi18main-p10-p.pdf?ip=203.220.129.155&id=3192369&acc=OA&key=4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E4D4702B0C3E38B35%2E66AE2C137E5E05CA&__acm__=1532737655_ac5e7ac0d74d1a28eaf5dd975900f935)
-* [ryu/f2s.c](https://github.com/ulfjack/ryu/blob/master/ryu/f2s.c)
-* [ryu/d2s.c](https://github.com/ulfjack/ryu/blob/master/ryu/d2s.c)
+* https://github.com/ulfjack/ryu
+* https://dl.acm.org/citation.cfm?id=3192369
