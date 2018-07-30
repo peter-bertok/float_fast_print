@@ -37,9 +37,9 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 A less exhaustive test for the `f64` version is available, but obviously can't be exhaustive, as it would take years to run.
 
 ## Pending Tasks
-[ ] Implement 2-digit lookup table and benchmark.
-[ ] Compare performance to alternatives when the cache has been flushed.
-[ ] Add JSON-style printing that uses the integer representation for whole numbers.
+- [ ] Implement 2-digit lookup table and benchmark.
+- [ ] Compare performance to alternatives when the cache has been flushed.
+- [ ] Add JSON-style printing that uses the integer representation for whole numbers.
 
 ## References
 * https://github.com/ulfjack/ryu
