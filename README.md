@@ -1,5 +1,5 @@
 # Overview
-A Rust version of the Ryū float-to-string conversion algorithm by Ulf Adams of Google Germany.  
+A Rust version of the high-performance [Ryū](https://github.com/ulfjack/ryu) float-to-string conversion algorithm by Ulf Adams of Google Germany.  
 
 ## Description
 The purpose of this crate is to improve the speed of converting `f32` and `f64` to string representations, 
