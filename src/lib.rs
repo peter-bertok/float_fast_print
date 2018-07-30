@@ -480,7 +480,7 @@ pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
                     }
                         else {
                             // Same as min(e2 + 1, pow5Factor(mp)) >= q.
-                            vp -= if multiple_of_pow5_64(mv + 2, q) { 1 } else { 1 };
+                            vp -= if multiple_of_pow5_64(mv + 2, q) { 1 } else { 0 };
                         }
                 }
         }
