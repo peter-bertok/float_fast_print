@@ -8,6 +8,7 @@ use rand::{thread_rng,Rng};
 /// This is exhaustive round-trip test, validating that all possible 32-bit
 /// floating-point input numbers can be parsed back into the original number.
 #[test]
+#[ignore]
 fn f32_test_exhaustive_roundtrip() {
     let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
 
@@ -37,6 +38,7 @@ fn f32_test_exhaustive_roundtrip() {
 /// generates 2^32 random 64-bit floating point numbers, which can be tested
 /// in a few hours on a modern desktop processor.
 #[test]
+#[ignore]
 fn f64_test_many_roundtrip() {
     let mut buffer : Vec<u8> = Vec::with_capacity( 32 );
 
