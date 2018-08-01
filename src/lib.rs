@@ -54,8 +54,7 @@ fn pow5_factor_32(mut value: u32 ) -> u32 {
         }
         value /= 5;
     }
-
-    return 0;
+    0
 }
 
 #[inline]
@@ -69,8 +68,7 @@ fn pow5_factor_64(mut value: u64 ) -> u32 {
         }
         value /= 5;
     }
-
-    return 0;
+    0
 }
 
 /// Returns `true` if `value` is divisible by `5^p`.
@@ -78,7 +76,7 @@ fn pow5_factor_64(mut value: u64 ) -> u32 {
 fn multiple_of_pow5_32(value: u32, p: i32) -> bool {
     // @@@ Is this necessary? Is p ever negative?
     if p < 0 { return false; }
-    return pow5_factor_32(value) >= p as u32;
+    pow5_factor_32(value) >= p as u32
 }
 
 /// Returns `true` if `value` is divisible by `5^p`.
@@ -86,7 +84,7 @@ fn multiple_of_pow5_32(value: u32, p: i32) -> bool {
 fn multiple_of_pow5_64(value: u64, p: i32) -> bool {
     // @@@ Is this necessary? Is p ever negative?
     if p < 0 { return false; }
-    return pow5_factor_64(value) >= p as u32;
+    pow5_factor_64(value) >= p as u32
 }
 
 fn mul_shift_32(m: u32, factor: u64, shift: u32 ) -> u32 {
@@ -102,7 +100,7 @@ fn mul_shift_32(m: u32, factor: u64, shift: u32 ) -> u32 {
 
     debug_assert!(shifted_sum <= std::u32::MAX as u64);
 
-    return shifted_sum as u32;
+    shifted_sum as u32
 }
 
 /// We need a 64x128-bit multiplication and a subsequent 128-bit shift.
@@ -144,7 +142,7 @@ fn decimal_length_32(v: u32 ) -> u32 {
     // Function precondition: v is not a 10-digit number.
     // (9 digits are sufficient for round-tripping.)
     debug_assert!(v < 1000000000);
-    
+
     if      v >= 100000000 { 9 }
     else if v >= 10000000 { 8 }
     else if v >= 1000000 { 7 }
@@ -207,10 +205,12 @@ fn decimal_length_64(v: u64) -> u32 {
 /// The `float_fast_print::exhaustive` test can be used to totally validate the
 /// round-trip behaviour and stability (no panics wih all 2^32 distinct `f32` inputs),
 /// guaranteeing safety. Note that this takes some days to complete...
+#[inline]
 pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
+    write_f32_intern(&mut writer, num)
+}
 
-    // TODO: may want to extract the bulk of this code to prevent large amounts of code being generated if using multiple Write implementations...
-
+fn write_f32_intern(writer: &mut Write, num: f32) -> Result<usize> {
     let bits = num.to_bits();
 
     let sign: bool = ((bits >> (F32_MANTISSA_BITS + F32_EXP_BITS)) & 1) != 0;
@@ -221,30 +221,26 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
     let m2: u32;
 
     if ieee_exponent == ( 1 << F32_EXP_BITS ) - 1 {
-        if ieee_mantissa != 0 {
-            return writer.write( b"NaN" );
+        return writer.write(if ieee_mantissa != 0 {
+            b"NaN"
         } else if sign {
-            return writer.write( b"-inf" );
+            b"-inf"
         } else {
-            return writer.write( b"inf" );
-        }
-    }
-    else if ieee_exponent == 0 {
+            b"inf"
+        });
+    } else if ieee_exponent == 0 {
         if ieee_mantissa == 0 {
-            if sign {
-                return writer.write( b"-0e0" );
-            }
-            else {
-                return writer.write( b"0e0" );
-            }
+            return writer.write(if sign {
+                b"-0e0"
+            } else {
+                b"0e0"
+            });
         }
 
         // We subtract 2 so that the bounds computation has 2 additional bits.
         e2 = 1i32 - ( F32_OFFSET as i32 ) - ( F32_MANTISSA_BITS as i32 ) - 2;
         m2 = ieee_mantissa;
-    }
-    else
-    {
+    } else {
         e2 = ( ieee_exponent as i32 ) - ( F32_OFFSET as i32 ) - ( F32_MANTISSA_BITS as i32 ) - 2;
         m2 = (1u32 << F32_MANTISSA_BITS) | ieee_mantissa;
     }
@@ -322,8 +318,7 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
 
     // Step 4: Find the shortest decimal representation in the interval of legal representations.
     let mut removed: u32 = 0;
-    let mut output: u32;
-    if vm_is_trailing_zeros || vr_is_trailing_zeros {
+    let mut output: u32 = if vm_is_trailing_zeros || vr_is_trailing_zeros {
         // General case, which happens rarely.
         while vp / 10 > vm / 10 {
             vm_is_trailing_zeros &= vm % 10 == 0;
@@ -349,7 +344,7 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
             last_removed_digit = 4;
         }
         // We need to take vr+1 if vr is outside bounds or we need to round up.
-        output = vr + ((vr == vm && (!accept_bounds || !vm_is_trailing_zeros)) || last_removed_digit >= 5) as u32;
+        vr + ((vr == vm && (!accept_bounds || !vm_is_trailing_zeros)) || last_removed_digit >= 5) as u32
     } else {
         // Common case.
         while vp / 10 > vm / 10 {
@@ -360,8 +355,8 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
             removed += 1;
         }
         // We need to take vr+1 if vr is outside bounds or we need to round up.
-        output = vr + (vr == vm || last_removed_digit >= 5) as u32;
-    }
+        vr + (vr == vm || last_removed_digit >= 5) as u32
+    };
     let o_length: u32 = decimal_length_32(output);
     let vp_length: u32 = o_length + removed;
 
@@ -389,12 +384,12 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
     result[index] = b'0' + ( output % 10 ) as u8;
 
     // Print decimal point if needed.
-    if o_length > 1 {
+    index += if o_length > 1 {
         result[index + 1] = b'.';
-        index += o_length as usize + 1;
+        o_length as usize + 1
     } else {
-        index += 1;
-    }
+        1
+    };
 
     // Print the exponent.
     result[index] = b'e';
@@ -440,12 +435,17 @@ pub fn write_f32_shortest<W: Write>(mut writer: W, num: f32 ) -> Result<usize> {
 ///
 /// Unlike `write_f32_shortest`, it is infeasible to test all 2^64 possible input
 /// numbers.
-pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
+#[inline]
+pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64) -> Result<usize> {
+    write_f64_intern(&mut writer, num)
+}
+
+fn write_f64_intern(writer: &mut Write, num: f64) -> Result<usize> {
     // Step 1: Decode the floating-point number, and unify normalized and subnormal cases.
      let bits: u64 = num.to_bits();
 
     // Decode bits into sign, mantissa, and exponent.
-    let sign: bool =  ((bits >> (F64_MANTISSA_BITS + F64_EXP_BITS)) & 1) != 0;
+    let sign: bool = ((bits >> (F64_MANTISSA_BITS + F64_EXP_BITS)) & 1) != 0;
     let ieee_mantissa: u64 = bits & ((1u64 << F64_MANTISSA_BITS) - 1);
     let ieee_exponent: u32 = ((bits >> F64_MANTISSA_BITS) & ((1u64 << F64_EXP_BITS) - 1)) as u32;
 
@@ -453,21 +453,19 @@ pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
     let m2: u64;
     // Case distinction; exit early for the easy cases.
     if ieee_exponent == ((1u32 << F64_EXP_BITS) - 1u32) || (ieee_exponent == 0 && ieee_mantissa == 0) {
-        if ieee_mantissa != 0 {
-            return writer.write( b"NaN" );
-        }
-        if ieee_exponent != 0 {
+        return writer.write(if ieee_mantissa != 0 {
+            b"NaN"
+        } else if ieee_exponent != 0 {
             if sign {
-                return writer.write( b"-inf" );
-            }  else {
-                return writer.write( b"inf" );
+                b"-inf"
+            } else {
+                b"inf"
             }
-        }
-        if sign {
-            return writer.write( b"-0e0" );
+        } else if sign {
+            b"-0e0"
         } else {
-            return writer.write( b"0e0" );
-        }
+            b"0e0"
+        });
     } else if ieee_exponent == 0 {
         // We subtract 2 so that the bounds computation has 2 additional bits.
         e2 = 1 - F64_OFFSET - F64_MANTISSA_BITS - 2;
@@ -476,8 +474,8 @@ pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
         e2 = ieee_exponent as i32 - F64_OFFSET - F64_MANTISSA_BITS - 2;
         m2 = (1u64 << F64_MANTISSA_BITS) | ieee_mantissa;
     }
-    let even: bool =  (m2 & 1) == 0;
-    let accept_bounds: bool =  even;
+    let even: bool = (m2 & 1) == 0;
+    let accept_bounds: bool = even;
 
     // Step 2: Determine the interval of legal decimal representations.
     let mv: u64 =  4 * m2;
@@ -551,9 +549,8 @@ pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
     // Step 4: Find the shortest decimal representation in the interval of legal representations.
     let mut removed: usize = 0;
     let mut last_removed_digit: u8 = 0;
-    let mut output: u64;
     // On average, we remove ~2 digits.
-    if vm_is_trailing_zeros || vr_is_trailing_zeros {
+    let mut output = if vm_is_trailing_zeros || vr_is_trailing_zeros {
         // General case, which happens rarely (<1%).
         while vp / 10 > vm / 10 {
             // https://bugs.llvm.org/show_bug.cgi?id=23106
@@ -586,7 +583,7 @@ pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
         }
 
         // We need to take vr+1 if vr is outside bounds or we need to round up.
-        output = vr + ((vr == vm && (!accept_bounds || !vm_is_trailing_zeros)) || (last_removed_digit >= 5)) as u64;
+        vr + ((vr == vm && (!accept_bounds || !vm_is_trailing_zeros)) || (last_removed_digit >= 5)) as u64
     } else {
         // Specialized for the common case (>99%).
         while vp / 10 > vm / 10 {
@@ -598,15 +595,15 @@ pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
         }
 
         // We need to take vr+1 if vr is outside bounds or we need to round up.
-        output = vr + ( (vr == vm) || (last_removed_digit >= 5)) as u64;
-    }
+        vr + ( (vr == vm) || (last_removed_digit >= 5)) as u64
+    };
     // The average output length is 16.38 digits.
     let o_length: usize =  decimal_length_64(output) as usize;
     let vp_length: usize =  o_length + removed;
     let mut exp: i32 = e10 + vp_length as i32 - 1;
 
     // Step 5: Print the decimal representation.
-    let mut result: [u8;24] = [0; 24]; // the longest required is apparently: -2.2250738585072020E−308
+    let mut result = [0u8; 24]; // the longest required is apparently: -2.2250738585072020E−308
     let mut index: usize = 0;
     if sign {
         result[index] = b'-';
@@ -649,8 +646,8 @@ pub fn write_f64_shortest<W: Write>(mut writer: W, num: f64 ) -> Result<usize> {
     }
     result[index] = b'0' + ( exp % 10 ) as u8;
     index += 1;
-    
-    writer.write(&result[0..index] )
+
+    writer.write(&result[0..index])
 }
 
 const F32_POW5_INV_SPLIT: [u64;31] = [
